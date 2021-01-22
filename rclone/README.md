@@ -1,7 +1,7 @@
 # setup_rclone
 ------------------
 
-Ususally there is no ARM Linux (like RPI) client for the major cloud providers. There is, however, one software that bridges over this gap: rclone.
+Usually there is no ARM Linux (like RPI) client for the major cloud providers. There is, however, one software that bridges over this gap: rclone.
 
 # Features:
 * Download an install rclone
