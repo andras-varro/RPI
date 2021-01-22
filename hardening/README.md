@@ -1,7 +1,7 @@
 # setup_lockscreen
 ------------------
 
-Raspberry OS/Raspbian comes with a nice and light user interface and autologin. Locking the UI was also not in scope for the defa-ult skin.
+Raspberry OS/Raspbian comes with a nice and light user interface and autologin. Locking the UI was also not in scope for the default skin.
 
 # Features:
 * Disable auto log-in
