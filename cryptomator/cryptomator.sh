@@ -1,10 +1,10 @@
 #!/bin/bash
 
 # cryptomator.sh - A simple bash demo wrapper around the cryptomator CLI
-# Copyright 2021 Andras Varro https://github.com/andras-varro
-# V20210111
+# Copyright 2022 Andras Varro https://github.com/andras-varro
+# V20220220
 #
-# Tested with Raspbian GNU/Linux 10 (buster) on RPi 4
+# Tested with Debian GNU/Linux 11 (bullseye)x64 on RPi 4
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -22,8 +22,12 @@ max_iteration=7
 password_file_name=$RANDOM$RANDOM$RANDOM
 share_ip_address=127.0.0.1
 share_port=8080
-mount_location=/home/pi/cryptomator
-cryptomator_jar=cryptomator-cli-0.4.0.jar
+mount_location=$HOME/cryptomator
+#use for V8 vaults
+cryptomator_link=https://github.com/cryptomator/cli/releases/download/0.5.1/cryptomator-cli-0.5.1.jar
+#use for V7 vaults
+cryptomator_link=https://github.com/cryptomator/cli/releases/download/0.4.0/cryptomator-cli-0.4.0.jar
+cryptomator_jar=cryptomator-cli.jar
 trace_level=0
 davfs_secrets_file=/etc/davfs2/secrets
 recents_file=recents
@@ -70,9 +74,10 @@ function check_for_cryptomator () {
     echo "Do you wish to start start installation? [Y/N]"
     read -n 1 -r answer
     echo ""
-    if [ "$answer" != "Y" ] && [ "$answer" != "y" ]; then
+    if [ "$answer" == "Y" ] || [ "$answer" == "y" ]; then
       setup_cryptomator
-      return 0
+      check_for_cryptomator
+      return
     fi
     
     user_message "You can download the latest version from: " "0"
@@ -160,7 +165,7 @@ function get_password () {
   read -s -r -p "Please enter the vault password: " password
   echo
   echo "$password" > "$password_file_name"
-  $password=""
+  password=""
 }
 
 # No parameter
@@ -316,11 +321,14 @@ function setup_cryptomator () {
   user_message "This will setup cryptomator, davfs2 and java. Please press enter to continue. Ctrl+C anytime breaks the script." "0"
   read -n 1 -s -r
   echo ""
-  sudo apt-get install default-jdk davfs2
+  sudo apt-get update
+  sudo apt-get install default-jdk davfs2 software-properties-common openjdk-17-jre
   mkdir ~/cryptomator
   cd ~/cryptomator
-  wget https://github.com/cryptomator/cli/releases/download/0.4.0/cryptomator-cli-0.4.0.jar
+  wget -O $cryptomator_jar $cryptomator_link
+  cp "$script_dir/Cryptomator.desktop" ~/Desktop
   cp "$script_dir/cryptomator.sh" ~/cryptomator
+  cd ~/cryptomator
   chmod +x cryptomator.sh
 }
 
@@ -352,7 +360,9 @@ script_dir=$(pwd)
 
 if [ "$1" == "setup" ]; then
   setup_cryptomator
-  exit 0
+  cd ~/cryptomator/
+  ./cryptomator.sh
+  exit
 fi
 
 open_vault

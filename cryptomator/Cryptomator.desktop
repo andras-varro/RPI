@@ -1,0 +1,7 @@
+[Desktop Entry]
+Comment=
+Terminal=true
+Name=Cryptomator CLI
+Exec=/home/pi/cryptomator/cryptomator.sh
+Type=Application
+Icon=gnome-panel-launcher
