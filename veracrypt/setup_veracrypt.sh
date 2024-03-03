@@ -65,7 +65,7 @@ build_required=0
 sudo apt install -qq -o=Dpkg::Use-Pty=0 -y libwxgtk3.0-gtk3-0v5
 RESULT=$?
 if [ $RESULT -ne 0 ]; then
-  sudo -qq -o=Dpkg::Use-Pty=0 apt install libwxgtk3.2-1
+  sudo apt install -qq -o=Dpkg::Use-Pty=0 -y libwxgtk3.2-dev
   (($?)) && read -n1 -r -p "Can't install either versions of libwxgtk3. Press enter to exit..." key && exit 1
 
   echo "  Can't install libwxgtk3.0-gtk3-0v5 but successfully installed libwxgtk3.2-1. There is no pre-built VeraCrypt for ARM64 for libwxgtk3.2-1. VeraCrypt needs to be built from source."
@@ -88,7 +88,7 @@ echo "$veracrypt_sha256  $veracrypt_local" | sha256sum -c
 (($?)) && read -n1 -r -p "Hash mismatch of downloaded file. Press enter to continue..." key
 
 install_failed=0
-if [ $build_required -eq 1 ]
+if [ $build_required -eq 1 ]; then
   tar xvf $veracrypt_local
   (($?)) && read -n1 -r -p "Untar of source failed. Press enter to exit..." key && exit 1
   

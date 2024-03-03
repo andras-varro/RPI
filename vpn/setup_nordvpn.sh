@@ -35,7 +35,7 @@ else
     echo ""
     if [ "$answer" != "Y" ] && [ "$answer" != "y" ]; then continue; fi
     
-    nordvpn whitelist add subnet $str
+    sudo nordvpn whitelist add subnet $str
     (($?)) && read -n1 -r -p "[nordvpn whitelist add subnet $str] FAILED!" key
   done
 fi

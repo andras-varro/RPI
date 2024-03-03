@@ -309,6 +309,7 @@ function generate_autolock_service () {
   echo "  Generating autolock service in [$service_file_name]."
   systemctl status $service_name > /dev/null
   result=$?
+# Todo: fix this, does not work correctly, this reports that the service is running, even though it does not
   if [ -e $service_file_name ] || [ $result -ne 0 ]; then
     echo "    Stopping service [$service_name]"
     sudo systemctl stop $service_name
