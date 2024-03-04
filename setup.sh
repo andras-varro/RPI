@@ -18,13 +18,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-echo "Please change Pi password (def: raspberry)"
+echo "Please change Pi password (def: raspberry). If you don't want to change your current password press enter (and ignore the 'FAILED' message."
 passwd
 (($?)) && read -n1 -r -p "[passwd] FAILED!" key
-
-echo "Please change root password (def: empty)"
-sudo passwd
-(($?)) && read -n1 -r -p "[sudo passwd] FAILED!" key
 
 sudo apt update -qq -o=Dpkg::Use-Pty=0
 (($?)) && read -n1 -r -p "[sudo apt update] FAILED!" key
