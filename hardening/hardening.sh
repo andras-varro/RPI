@@ -57,7 +57,8 @@ Environment=XDG_RUNTIME_DIR=$XDG_RUNTIME_DIR"
       if grep -q "\[idle\]" $WAYFIRE_FILE ; then
         sed -i "s/\[idle]/[idle]\ndpms_timeout=$blank_timeout_sec/" $WAYFIRE_FILE
       else
-        echo '\n[idle]' >> $WAYFIRE_FILE
+        echo ""  >> $WAYFIRE_FILE
+        echo "[idle]" >> $WAYFIRE_FILE
         echo "dpms_timeout=$blank_timeout_sec" >> $WAYFIRE_FILE
       fi
     fi
