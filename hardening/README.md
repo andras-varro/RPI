@@ -9,7 +9,7 @@ Raspberry OS/Raspbian comes with a nice and light user interface and autologin. 
 * Disable guest log-in
 * Defines Ctrl+Alt+L to lock the screen
 * Creates a 'Lock' entry in the Main Menu (not yet supported under Wayland/Wayfire)
-* Generates a service to lock the screen after 5 minutes of inactivity unless:
+* Generates a service (or an autostart entry in wayfire) to lock the screen after 2 minutes of inactivity unless:
   * Full screen application is running (not yet supported under Wayland/Wayfire)
   * Audio is played
   * It is already locked
@@ -31,7 +31,7 @@ chmod +x hardening.sh
 
 ## Configuration:
 
-The script has not much configuration potential. Maybe in future versions.
+The script has a configuration section at the beginning.
 
 ## Troubleshooting
 

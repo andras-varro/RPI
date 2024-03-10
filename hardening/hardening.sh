@@ -3,7 +3,7 @@
 # hardening.sh - A simple bash demo to disable auto login, add auto-screen-lock and disable no-password-sudo for the user.
 # Copyright 2024 Andras Varro https://github.com/andras-varro
 # Full screen app handling credits go to Clay Boon https://github.com/clayboone/scripts/blob/master/auto_lock_screen.sh
-# V20240301
+# V20240309
 #
 # Tested with Raspberry OS Debian GNU/Linux 12 (bookworm) on RPi 5
 #
@@ -19,52 +19,81 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+use_locker_service_for_wayland=false
 script_file_name=$HOME/locker.sh
-lock_timeout_sec=300
-blank_timeout_sec=600
+service_name="autolock.service"
+service_file_name=/etc/systemd/system/$service_name
+
+# only needed for wayland
+WAYFIRE_FILE=$HOME/.config/wayfire.ini
+lock_timeout_sec=130
+
 function install_dependencies () {
   echo "  Installing dependencies."
   sudo apt update -qq -o=Dpkg::Use-Pty=0
   (($?)) && read -n1 -r -p "sudo apt update FAILED!" key
   
   if [ "$GDMSESSION" == "lightdm-xsession" ]; then
-    echo "    Working with lightdm-xsession"
     sudo apt install -qq -o=Dpkg::Use-Pty=0 -y xautolock
     (($?)) && read -n1 -r -p "sudo apt install xautolock -y FAILED!" key
-
-    lock_executable="dm-tool"
-    lock_command="/usr/bin/$lock_executable lock"
-    lock_service_environment="Environment=DISPLAY=:0"
-    lock_service_exec_start="ExecStart=/usr/bin/xautolock -noclose -time 5 -locker \"$script_file_name\" -detectsleep"
-    lock_service_exec_stop="ExecStop=/usr/bin/xautolock -exit"
   fi
   
   if [ "$GDMSESSION" == "LXDE-pi-wayfire" ]; then
     echo "    Working with LXDE-pi-wayfire"
     sudo apt install -qq -o=Dpkg::Use-Pty=0 -y  swayidle swaylock
     (($?)) && read -n1 -r -p "sudo apt install swayidle swaylock -y FAILED!" key
-    
+  fi    
+  
+  echo "  Finished installing dependencies."
+}
+
+function set_variables () {  
+  echo "  Setting variables."
+  if [ "$GDMSESSION" == "lightdm-xsession" ]; then
+    lock_executable="dm-tool"
+    lock_command="/usr/bin/$lock_executable lock"
+    lock_service_environment="Environment=DISPLAY=:0"
+    lock_command_line="/usr/bin/xautolock -noclose -time 5 -locker \"$script_file_name\" -detectsleep"
+    lock_service_exec_start="ExecStart=$lock_command_line"
+    lock_service_exec_stop="ExecStop=/usr/bin/xautolock -exit"
+  fi
+  
+  if [ "$GDMSESSION" == "LXDE-pi-wayfire" ]; then
     lock_executable="swaylock"
     lock_command="/usr/bin/$lock_executable -c 1A0400"
     lock_service_environment="Environment=WAYLAND_DISPLAY=$WAYLAND_DISPLAY
 Environment=XDG_RUNTIME_DIR=$XDG_RUNTIME_DIR"
-    lock_service_exec_start="ExecStart=/usr/bin/swayidle -w timeout $lock_timeout_sec \"$script_file_name\""
+    lock_command_line="/usr/bin/swayidle -w timeout $lock_timeout_sec \"$script_file_name\""
+    lock_service_exec_start="ExecStart=$lock_command_line"
     lock_service_exec_stop=""
-    WAYFIRE_FILE=$HOME/.config/wayfire.ini
-    if grep -q dpms_timeout $WAYFIRE_FILE ; then
-        sed -i "s/dpms_timeout.*/dpms_timeout=$blank_timeout_sec/" $WAYFIRE_FILE
-    else
-      if grep -q "\[idle\]" $WAYFIRE_FILE ; then
-        sed -i "s/\[idle]/[idle]\ndpms_timeout=$blank_timeout_sec/" $WAYFIRE_FILE
-      else
-        echo ""  >> $WAYFIRE_FILE
-        echo "[idle]" >> $WAYFIRE_FILE
-        echo "dpms_timeout=$blank_timeout_sec" >> $WAYFIRE_FILE
-      fi
-    fi
   fi    
-  
-  echo "  Finished installing dependencies: lock_executable=[$lock_executable], lock_command=[$lock_command], lock_service_environment=[$lock_service_environment], lock_service_exec_start=[$lock_service_exec_start], lock_service_exec_stop=[$lock_service_exec_stop]"
+
+  echo "  Finished setting variables."  
+}
+
+function setup_wayfire_autostart_locker () {
+  echo "  Setting up screen locker as wayfire autostart program."
+  [ -e $WAYFIRE_FILE ] || ( read -n1 -r -p "Wayfire config file [$WAYFIRE_FILE] cannot be found. Screen saver and blanking is not set up" key && return 1 )
+
+  if grep -q locker $WAYFIRE_FILE ; then
+      sed -i "s+locker.*+locker=$lock_command_line+" $WAYFIRE_FILE
+      (($?)) && read -n1 -r -p "sed -i \"s+locker.*+locker=$lock_command_line+\" $WAYFIRE_FILE FAILED!" key && return 1
+  else
+    if grep -q "\[autostart\]" $WAYFIRE_FILE ; then
+      sed -i "s+\[autostart]+[autostart]\nlocker=$lock_command_line+" $WAYFIRE_FILE
+      (($?)) && read -n1 -r -p "sed -i \"s+\[autostart]+[autostart]\nlocker=$lock_command_line+\" $WAYFIRE_FILE FAILED!" key && return 1
+    else
+      echo ""  >> $WAYFIRE_FILE
+      (($?)) && read -n1 -r -p "echo \"\"  >> $WAYFIRE_FILE FAILED!" key && return 1
+      echo "[autostart]" >> $WAYFIRE_FILE
+      (($?)) && read -n1 -r -p "echo \"[autostart]\" >> $WAYFIRE_FILE FAILED!" key && return 1
+      echo "locker=$lock_command_line" >> $WAYFIRE_FILE
+      (($?)) && read -n1 -r -p "echo \"locker=$lock_command_line\" >> $WAYFIRE_FILE FAILED!" key && return 1
+    fi
+  fi
+
+  stop_and_remove_existing_autlock_service_if_any
+  echo "  Finished setting up screen locker as wayfire autostart program."
 }
 
 # disable autologin https://www.raspberrypi.org/forums/viewtopic.php?p=845309
@@ -172,35 +201,37 @@ function add_lock_screen_to_main_menu () {
     return 1
   fi
 
-  config_file=$HOME/.config/lxpanel/LXDE-pi/panels/panel
-  if [ ! -e "$config_file" ]; then
-    config_file=/etc/xdg/lxpanel/LXDE-pi/panels/panel
+  if [ "$GDMSESSION" == "lightdm-xsession" ]; then
+    config_file=$HOME/.config/lxpanel/LXDE-pi/panels/panel
+    if [ ! -e "$config_file" ]; then
+      config_file=/etc/xdg/lxpanel/LXDE-pi/panels/panel
+    fi
+
+    if [ -z ${config_file+x} ]; then 
+      read -n1 -r -p "Config file cannot be determined. Lock screen entry NOT inserted!" key
+      return 1
+    fi
+
+    action="item {\n      image=gnome-lockscreen\n      name=Lock\n      action=/usr/bin/dm-tool lock\n    }"
+    after="command=logout"
+
+    insert_text_at $action $after $config_file
+    result=$?
+    if [ $result -ne 0 ]; then
+      read -n1 -r -p "Inserting screen-locker entry in Main Menu FAILED!" key
+      return 1
+    fi
+
+    # lock screen: reload lxpanel (reboot is needed)  https://wiki.lxde.org/en/LXPanel#Fix_empty_menu_in_LXPanel
+    killall lxpanel
+    (($?)) && read -n1 -r -p "killall lxpanel FAILED!" key
+
+    find ~/.cache/menus -name '*' -type f -print0 | xargs -0 rm
+    (($?)) && read -n1 -r -p "find ~/.cache/menus ... FAILED!" key
+
+    lxpanel -p LXDE &
+    (($?)) && read -n1 -r -p "lxpanel -p LXDE FAILED!" key
   fi
-
-  if [ -z ${config_file+x} ]; then 
-    read -n1 -r -p "Config file cannot be determined. Lock screen entry NOT inserted!" key
-    return 1
-  fi
-
-  action="item {\n      image=gnome-lockscreen\n      name=Lock\n      action=/usr/bin/dm-tool lock\n    }"
-  after="command=logout"
-
-  insert_text_at $action $after $config_file
-  result=$?
-  if [ $result -ne 0 ]; then
-    read -n1 -r -p "Inserting screen-locker entry in Main Menu FAILED!" key
-    return 1
-  fi
-
-  # lock screen: reload lxpanel (reboot is needed)  https://wiki.lxde.org/en/LXPanel#Fix_empty_menu_in_LXPanel
-  killall lxpanel
-  (($?)) && read -n1 -r -p "killall lxpanel FAILED!" key
-
-  find ~/.cache/menus -name '*' -type f -print0 | xargs -0 rm
-  (($?)) && read -n1 -r -p "find ~/.cache/menus ... FAILED!" key
-
-  lxpanel -p LXDE &
-  (($?)) && read -n1 -r -p "lxpanel -p LXDE FAILED!" key
 
   echo "  Finished insering Lock screen entry in Main Menu."
 }
@@ -280,7 +311,15 @@ function should_lock () {
 
 if should_lock; then 
   if [[ -z "$XDG_SEAT_PATH" ]]; then
-    export XDG_SEAT_PATH=/org/freedesktop/DisplayManager/Seat0
+    export XDG_SEAT_PATH=XDG_SEAT_PATH_PLACEHOLDER
+  fi
+  
+  if [[ -z "$WAYLAND_DISPLAY" ]]; then
+	  export WAYLAND_DISPLAY=WAYLAND_DISPLAY_PLACEHOLDER
+  fi
+
+  if [[ -z "XDG_RUNTIME_DIR" ]]; then
+    export XDG_RUNTIME_DIR=XDG_RUNTIME_DIR_PLACEHOLDER
   fi
 	
   LOCK_COMMAND_PLACEHOLDER
@@ -294,6 +333,15 @@ EOL
   
   sed -i -e "s=LOCK_COMMAND_PLACEHOLDER=$lock_command=g" "$script_file_name"
   (($?)) && read -n1 -r -p "[sed -i -e \"s=LOCK_COMMAND_PLACEHOLDER=$lock_command=g\" \"$script_file_name\"] FAILED!" key
+
+  sed -i -e "s=XDG_SEAT_PATH_PLACEHOLDER=$XDG_SEAT_PATH=g" "$script_file_name"
+  (($?)) && read -n1 -r -p "[sed -i -e \"s=XDG_SEAT_PATH_PLACEHOLDER=$XDG_SEAT_PATH=g\" \"$script_file_name\"] FAILED!" key
+
+  sed -i -e "s=WAYLAND_DISPLAY_PLACEHOLDER=$WAYLAND_DISPLAY=g" "$script_file_name"
+  (($?)) && read -n1 -r -p "[sed -i -e \"s=WAYLAND_DISPLAY_PLACEHOLDER=$WAYLAND_DISPLAY=g\" \"$script_file_name\"] FAILED!" key
+
+  sed -i -e "s=XDG_RUNTIME_DIR_PLACEHOLDER=$XDG_RUNTIME_DIR=g" "$script_file_name"
+  (($?)) && read -n1 -r -p "[sed -i -e \"s=XDG_RUNTIME_DIR_PLACEHOLDER=$XDG_RUNTIME_DIR=g\" \"$script_file_name\"] FAILED!" key
     
   chmod +x $script_file_name
   (($?)) && read -n1 -r -p "[chmod +x $script_file_name] FAILED!" key
@@ -301,13 +349,7 @@ EOL
   echo "  Finished generating autolock script."
 }
 
-
-# lock screen: autolock service
-function generate_autolock_service () {
-  generate_autolock_script
-  service_name="autolock.service"
-  service_file_name=/etc/systemd/system/$service_name
-  echo "  Generating autolock service in [$service_file_name]."
+function stop_and_remove_existing_autlock_service_if_any (){
   systemctl status $service_name > /dev/null
   result=$?
   if [ $result -eq 0 ]; then
@@ -321,6 +363,19 @@ function generate_autolock_service () {
     sudo rm $service_file_name
     (($?)) && read -n1 -r -p "[sudo rm $service_file_name] FAILED!" key
   fi
+}
+
+# lock screen: autolock service
+function setup_autolock () {
+  generate_autolock_script
+  if ( ! $use_locker_service_for_wayland ) && [ "$GDMSESSION" == "LXDE-pi-wayfire" ]; then
+    setup_wayfire_autostart_locker
+    (($?)) || return 0
+    read -n1 -r -p "Setting up auto lock as wayfire service FAILED! Press ENTER to setup autolock service." key
+  fi
+
+  echo "  Generating autolock service in [$service_file_name]."
+  stop_and_remove_existing_autlock_service_if_any
 
   sudo touch $service_file_name
   (($?)) && read -n1 -r -p "[sudo touch $service_file_name] FAILED!" key
@@ -384,9 +439,12 @@ function disable_no_password_sudo() {
 
 echo "Starting to setup locking features."
 install_dependencies
+set_variables
+setup_screen_saver
+setup_screen_blanking
 disable_autologin
 define_lock_screen_key_combo
 add_lock_screen_to_main_menu
-generate_autolock_service
+setup_autolock
 disable_no_password_sudo
 echo "Finished to setup locking features."
