@@ -62,6 +62,13 @@ chmod +x ./hardening/hardening.sh
 ./hardening/hardening.sh
 (($?)) && read -n1 -r -p "[./cryptomator/hardening.sh] FAILED!" key
 
+# Setup screen saver and blanking (fix alt-tab)
+chmod +x ./tweaks/tweaks.sh
+(($?)) && read -n1 -r -p "[chmod +x ./tweaks/tweaks.sh] FAILED!" key
+./tweaks/tweaks.sh
+(($?)) && read -n1 -r -p "[./tweaks/tweaks.sh] FAILED!" key
+
+
 # update
 sudo apt-get update -qq -o=Dpkg::Use-Pty=0 
 (($?)) && read -n1 -r -p "[sudo apt-get update] FAILED!" key
