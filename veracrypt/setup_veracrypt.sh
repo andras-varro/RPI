@@ -114,7 +114,7 @@ fi
 
 (($cd_worked)) && popd
 
-(($development_folder_existed_before_script)) && rm -r $HOME/development
+(($development_folder_existed_before_script)) && sudo rm -rf $HOME/development
 (($?)) && read -n1 -r -p "Cleanup has failed. Unable to delete $HOME/development. Press enter to continue..." key
 
 (($install_failed)) || echo "$(veracrypt -t --version) was installed. if the mounting does not work, disable kernel crypto." && exit 0
