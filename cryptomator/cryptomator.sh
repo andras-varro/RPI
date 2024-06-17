@@ -1,370 +1,82 @@
 #!/bin/bash
 
-# cryptomator.sh - A simple bash demo wrapper around the cryptomator CLI
-# Copyright 2022 Andras Varro https://github.com/andras-varro
-# V20220220
-#
-# Tested with Debian GNU/Linux 11 (bullseye)x64 on RPi 4
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+echo "Starting Cryptomator setup."
+Cryptomator_url=https://github.com/cryptomator/cryptomator/releases/download/1.12.3/cryptomator-1.12.3-aarch64.AppImage
+Cryptomator_local=cryptomator-1.12.3-aarch64.AppImage
+Cryptomator_sha256=6aa1283f28f310096a3425bc58fe63f6f847801801269bf2029d60c596e13195
+Cryptomator_icon_url=https://avatars.githubusercontent.com/u/11858409
+Cryptomator_icon_local=cryptomator.png
+Cryptomator_icon_sha256=5006e8be9c1b23cd6003239f160beac4947521e220b763ebd494fa6c9f734bb8
+AppImage_Folder=$HOME/appImages/Cryptomator
+Desktop_File=$HOME/.local/share/applications/Cryptomator.desktop
 
-max_iteration=7
-password_file_name=$RANDOM$RANDOM$RANDOM
-share_ip_address=127.0.0.1
-share_port=8080
-mount_location=$HOME/cryptomator
-#use for V8 vaults
-cryptomator_link=https://github.com/cryptomator/cli/releases/download/0.5.1/cryptomator-cli-0.5.1.jar
-#use for V7 vaults
-cryptomator_link=https://github.com/cryptomator/cli/releases/download/0.4.0/cryptomator-cli-0.4.0.jar
-cryptomator_jar=cryptomator-cli.jar
-trace_level=0
-davfs_secrets_file=/etc/davfs2/secrets
-recents_file=recents
-new_vault_prompt='New vault'
-quit_prompt='Quit'
-curl_params="-f"
-
-# $1 = message
-# $2 = trace level
-function press_enter_to () {
-  if [ "$1" != "" ]; then user_message "Press enter to $1" "$2"; fi
-  read -n 1 -s -r
-  echo ""
-  return 0
-}
-
-# $1 = exit code
-# $2 = trace level
-function press_enter_to_exit () {
-  press_enter_to "$quit_prompt" "$2"
-  exit "$1"
-}
-
-# $1 = message, 
-# $2 = trace level
-function user_message () {
-  if [ "$1" = "" ]; then return 1; fi
-  if [ "$2" != "" ] && [ "$2" -gt $trace_level ]; then return 2; fi
-  echo "$1"
-  return 0
-}
-
-# No parameter
-function set_verbosity () {
-  if [ $trace_level -lt 2 ]; then
-    curl_params="-fs"
-  fi
-}
-
-# No parameter
-function check_for_cryptomator () {
-  if [ ! -e "$cryptomator_jar" ]; then
-    user_message "Cryptomator cli file [$cryptomator_jar] cannot be found." "0"
-    echo "Do you wish to start start installation? [Y/N]"
-    read -n 1 -r answer
-    echo ""
-    if [ "$answer" == "Y" ] || [ "$answer" == "y" ]; then
-      setup_cryptomator
-      check_for_cryptomator
-      return
-    fi
-    
-    user_message "You can download the latest version from: " "0"
-    user_message "https://github.com/cryptomator/cli/releases" "0"
-    press_enter_to_exit "1" "0"
-  fi
-}
-
-# No parameter
-function get_vault_path () {
-  if [ "$recents_file" != "" ] && [ -e "$recents_file" ]; then
-    mapfile -t recent_array < "$recents_file"
-  fi;
-  recent_array+=("$new_vault_prompt")
-  recent_array+=("$quit_prompt")
-  PS3='Please enter your choice: '
-  select option in "${recent_array[@]}"
-  do
-      case "$option" in
-          "$new_vault_prompt")
-              read -r -p "Please enter the path to the vault directory: " vault_path
-              break;
-              ;;
-          "$quit_prompt")
-              press_enter_to_exit "1" "0"
-              ;;
-          "")            
-              user_message "Invalid selection" "0"
-              ;;
-          *)
-              vault_path="$option"
-              break;
-              ;;
-      esac
-  done
+# $1 url
+# $2 local
+# $3 hash
+function download_and_check () {
+  url=$1
+  local=$2
+  hash=$3
   
-  user_message "Selected vault path: $vault_path" "2"
+  echo "Downloading [$url] to [$local]"
+  if [ ! -e $local ]; then
+    wget -L -O $local $url
+    (($?)) && read -n1 -r -p "Can't download $url. Press enter to exit..." key && exit 1
+  fi
+
+  chmod +x $local
+  (($?)) && read -n1 -r -p "Can't change "execute" attribube on $local. You will need to do that manually. Press enter to continue..." key
+
+  path="$PWD/$local"
+  if [ ! -e $path ]; then
+    (($?)) && read -n1 -r -p "Apparently the file at $path does not exist. This expected to be the runnable AppImage. Please try to re-run this script. Press enter to exit..." key && exit 1
+  fi
+
+  echo "$hash  $local" | sha256sum -c
+  (($?)) && read -n1 -r -p "Hash mismatch of downloaded file [$local]. Press enter to continue..." key
 }
 
-# No parameter
-function check_if_path_is_vault () {
-  if [ -e "$vault_path/masterkey.cryptomator" ]; then
-      user_message "Masterkey for vault $vault_path found." "2"
-      # Support for recent
-      if [ "$recents_file" != "" ]; then
-        if [ ! -e "$recents_file" ]; then 
-          user_message "Recents file [$recents_file] not found, creating new." "2"
-          touch "$recents_file" 
-        fi
-        
-        grep ^"$vault_path" "$recents_file" -q
-        result=$?
-        if [ $result -ne 0 ]; then
-          user_message "Adding vault [$vault_path] to recents file [$recents_file]" "2"
-          echo "$vault_path" >> "$recents_file"
-        fi
-      fi
-  else
-      user_message "No masterkey for vault $vault_path was found." "0"
-      press_enter_to_exit "1" "0"
+function own_it() {
+  file=$1
+  if [ -n "$SUDO_USER" ]; then
+    chown $SUDO_USER $file$
+    (($?)) && read -n1 -r -p "[chown $SUDO_USER $file] FAILED! Press enter to continue..." key
   fi
 }
 
-# No parameter
-function get_vault_name () {
-  IFS='/' 
-  read -ra directories <<< "$vault_path"
-  for i in "${directories[@]}"; do 
-      vault_name=$i
-  done
-  
-  IFS=' '
-  if [ "$vault_name" == "" ]; then
-     read -r -p "Please enter a name for the vault: " vault_name
-  fi
-
-  if [ "$vault_name" == "" ]; then
-     user_message "No name is specified for vault $vault_path." "0"
-     press_enter_to_exit "1" "0"
-  fi
-}
-
-# No parameter
-function get_password () {
-  read -s -r -p "Please enter the vault password: " password
-  echo
-  echo "$password" > "$password_file_name"
-  password=""
-}
-
-# No parameter
-function start_cryptomator () {
-  user_message "Working on vault [$vault_name]. Please wait." "0"  
-  if [ $trace_level -ge 1 ]; then
-    java -jar "$cryptomator_jar" --vault "$vault_name=$vault_path" --passwordfile "$vault_name=$password_file_name" --bind $share_ip_address --port $share_port &
-  else
-    java -jar "$cryptomator_jar" --vault "$vault_name=$vault_path" --passwordfile "$vault_name=$password_file_name" --bind $share_ip_address --port $share_port  > /dev/null 2>&1 &
-  fi
-  
-  cryptomator_pid=$!
-  user_message "Cryptomator PID: $cryptomator_pid" "2"
-}
-
-# No parameter
-function wait_for_share () {
-  iteration=1
-  success=0
-  user_message "curl http://$share_ip_address:$share_port/$vault_name $curl_params" "2"
-  curl "http://$share_ip_address:$share_port/$vault_name" "$curl_params"
-  result=$?
-  while [ $result -ne 0 ]; do 
-    if [ $iteration -gt $max_iteration ]; then
-      user_message "Timeout" "0"
-      success=1	  
-      break;
-    fi
-    iteration=$((iteration+1))
-    sleep 1;
-    user_message "Waiting for share $iteration/$max_iteration" "1"
-    user_message "curl http://$share_ip_address:$share_port/$vault_name $curl_params" "2"
-    curl "http://$share_ip_address:$share_port/$vault_name" "$curl_params"
-    result=$?
-  done
-}
-
-# No parameter
-function clear_password () {
-  rm -f $password_file_name
-  result=$?
-  if [ $result -ne 0 ]; then
-    user_message "WARNING! Unable to delete password file: $password_file_name." "0"
-    user_message "Please remove the file manually." "0"
-    press_enter_to "continue." "0"
-  fi
-}
-
-# No parameter
-function check_if_wait_for_share_succeeded () {
-  if [ $success -ne 0 ]; then
-    stop_cryptomator_and_exit "ERROR Unable to connect to share." "0" "$cryptomator_pid"
-  fi
-
-  user_message "Vault [$vault_name] decrypted successfully and published at: [$share_ip_address:$share_port]" "1"
-}
-
-# No parameter
-function define_mount_point () {
-  mount_point="$mount_location/$vault_name"
-  if [ ! -d "$mount_point" ]; then
-    sudo mkdir "$mount_point"
-    result=$?
-    if [ $result -ne 0 ]; then
-      stop_cryptomator_and_exit "Error! Unable to create mount point: $mount_point" "0" "$cryptomator_pid"
-    fi
-  fi
-
-  user_message "Vault [$vault_name] will be mounted at [$mount_point]." "1"
-}
-
-# No parameter
-function maintain_davfs_secrets_file () {
-  if [ "$davfs_secrets_file" == "" ] || [ ! -e "$davfs_secrets_file" ]; then
-    if [ "$davfs_secrets_file" == "" ]; then
-      message_text="is not configured."
-    else
-      message_text="[$davfs_secrets_file] does not exist. Make sure the configuration file exist at this location."
-    fi
-    
-    user_message "DavFS' secrets file $message_text" "0"
-    user_message "Mounting will ask for a user name and a password. Press enter for both questions if the share is not otherwise configured." "0"
-  else
-    sudo grep ^"http://$share_ip_address:$share_port/$vault_name/" $davfs_secrets_file -q
-    result=$?
-    if [ $result -ne 0 ]; then
-      user_message "http://$share_ip_address:$share_port/$vault_name/ not found in $davfs_secrets_file, adding line with empty password" "2"
-      echo "http://$share_ip_address:$share_port/$vault_name/ \" \" \" \"" | sudo tee -a $davfs_secrets_file > /dev/null
-    fi
-  fi
-}
-
-# No parameter
-function mount_share_and_wait_for_exit () {
-  sudo mount -t davfs "http://$share_ip_address:$share_port/$vault_name/" "$mount_point" -o user,rw,uid="$(id -u)",gid="$(id -g)"
-  result=$?
-  if [ $result -eq 0 ]; then
-    user_message "Vault [$vault_name] decrypted and mounted successfully at [$mount_point]." "0"
-    press_enter_to "unmount and close vault." "0"
-    sudo umount "$mount_point"
-    result=$?
-    while [ $result -ne 0 ]; do 
-      user_message "Error code: $result" "1"
-      if [ $result -eq 32 ]; then
-        user_message "Vault is not mounted" "0"
-        break;
-      fi
-    
-      user_message "ERROR! Unable to unmount vault [$vault_name]." "0"
-      user_message "Please close all terminals and applications that are using files or folders from the vault." "0"
-      press_enter_to "retry." "0"
-      sudo umount "$mount_point"
-      result=$?
-    done
-  else
-    user_message "Vault [$vault_name]: mount failed" "0"
-    press_enter_to "close vault." "0"
-  fi
-}
-
-# $1 = cryptomator PID
-function stop_cryptomator () {
-  if [ "$1" = "" ]; then return 1; fi
-  kill "$1"
-  result=$?
-  while [ $result -ne 0 ]; do 
-    user_message "Error! Unable to stop cryptomator. PID: [$1], vault: [$vault_name]." "0"
-    read -n 1 -s -r -p "Press enter to retry."
-    sudo kill "$1"
-    result=$?
-  done
-  
-  user_message "Vault [$vault_name] was successfully closed" "0"
-}
-
-# $1 = message (reason)
-# $2 = trace level
-# $3 = cryptomator PID
-function stop_cryptomator_and_exit () {
-  if [ "$1" != "" ]; then user_message "$1" "$2"; fi
-  press_enter_to "stop cryptomator" "$2"
-  stop_cryptomator "$3"
-  press_enter_to_exit "1" "0"
-}
-
-# No parameter
-function setup_cryptomator () {
-  if [ -e "~/cryptomator/$cryptomator_jar" ]; then
-     echo "cryptomator already installed at ~/cryptomator/$cryptomator_jar"
-     return 0
-  fi
-  
-  user_message "This will setup cryptomator, davfs2 and java. Please press enter to continue. Ctrl+C anytime breaks the script." "0"
-  read -n 1 -s -r
-  echo ""
-  sudo apt-get update
-  sudo apt-get install default-jdk davfs2 software-properties-common openjdk-17-jre
-  mkdir ~/cryptomator
-  cd ~/cryptomator
-  wget -O $cryptomator_jar $cryptomator_link
-  cp "$script_dir/Cryptomator.desktop" ~/Desktop
-  cp "$script_dir/cryptomator.sh" ~/cryptomator
-  cd ~/cryptomator
-  chmod +x cryptomator.sh
-}
-
-# No parameter
-function open_vault () {
-  set_verbosity
-  check_for_cryptomator
-  get_vault_path
-  check_if_path_is_vault
-  get_vault_name
-  get_password
-  start_cryptomator
-  wait_for_share
-  clear_password
-  check_if_wait_for_share_succeeded
-  define_mount_point
-  maintain_davfs_secrets_file
-  mount_share_and_wait_for_exit
-  stop_cryptomator $cryptomator_pid
-}
-
-cd "${0%/*}" || exit 1
-script_dir=$(pwd)
-
-#if [ "$EUID" -ne "0" ]; then
-#  user_message "Please start script with sudo." "0"
-#  exit 1
-#fi
-
-if [ "$1" == "setup" ]; then
-  setup_cryptomator
-  cd ~/cryptomator/
-  ./cryptomator.sh
-  exit
+if [ ! -d $AppImages_Folder ]; then 
+  mkdir -p $AppImages_Folder
+  (($?)) && read -n1 -r -p "[mkdir -p $AppImages_Folder] FAILED! Press enter to continue..." key
 fi
 
-open_vault
-sleep 2
+pushd $PWD
+cd_worked=0
+cd $AppImages_Folder
+(($?)) && read -n1 -r -p "Cannot switch to  $AppImages_Folder. Working in the current [$PWD] folder. Press enter to continue..." key && cd_worked=1
 
+download_and_check "$Cryptomator_url" "$Cryptomator_local" "$Cryptomator_sha256"
+own_it $Cryptomator_local
+
+download_and_check "$Cryptomator_icon_url" "$Cryptomator_icon_local" "$Cryptomator_icon_sha256"
+own_it $Cryptomator_icon_local
+
+echo "Creating desktop file [$Desktop_File]"
+tee $Desktop_File > /dev/null << EOL
+[Desktop Entry]
+Type=Application
+Icon=$PWD/$Cryptomator_icon_local
+Name=Cryptomator cloud encryptor
+GenericName=Cryptomator
+Comment=With Cryptomator, the key to your data is in your hands. Cryptomator encrypts your data quickly and easily. Afterwards you upload them protected to your favorite cloud service.
+Categories=FileTools;FileManager;Utility;Core;
+Exec=$PWD/$Cryptomator_local
+StartupNotify=true
+Terminal=false
+EOL
+
+(($?)) && read -n1 -r -p "Creating [$Desktop_File] FAILED! Press enter to continue..." key
+
+own_it $Desktop_File
+(($cd_worked)) && popd
+
+echo "Finished Cryptomator Setup"
