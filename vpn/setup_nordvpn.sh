@@ -18,8 +18,48 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-sh <(curl -sSf https://downloads.nordcdn.com/apps/linux/install.sh)
-(($?)) && read -n1 -r -p "[sh <(curl -sSf https://downloads.nordcdn.com/apps/linux/install.sh)] FAILED!" key
+echo "Starting NordVpn setup."
+NordVpn_url=https://downloads.nordcdn.com/apps/linux/install.sh
+NordVpn_local=install.sh
+
+development_folder_existed_before_script=1
+nordvpn_folder_existed_before_script=1
+cd_worked=1
+
+which nordvpn > /dev/null
+result=$?
+if [ $result -eq 0 ]; then
+  echo "  NordVPN seems to be installed. Checking..."
+  nordvpn --version > /dev/null 2>&1
+  (($?)) || read -n1 -r -p "  $(nordvpn --version) is already installed. Press enter to exit." key && exit 0
+
+  echo "  NordVPN does not work. Trying to re-install."
+fi
+
+if [ ! -d $HOME/development ]; then 
+  mkdir $HOME/development
+  (($?)) && read -n1 -r -p "[mkdir $HOME/development] FAILED!" key
+  development_folder_existed_before_script=0
+fi
+
+if [ ! -d $HOME/development/nordvpn ]; then 
+  mkdir $HOME/development/nordvpn
+  (($?)) && read -n1 -r -p "[mkdir $HOME/development/nordvpn] FAILED!" key
+  nordvpn_folder_existed_before_script=0
+fi
+
+pushd $PWD
+cd $HOME/development/nordvpn
+(($?)) && read -n1 -r -p "Cannot switch $HOME/development/nordvpn. Working in current folder. Press enter to continue..." key && cd_worked=0
+
+if [ ! -e $NordVpn_local ]; then
+  wget -L -O $NordVpn_local $NordVpn_url
+  (($?)) && read -n1 -r -p "Can't download $NordVpn_url. Press enter to exit..." key && exit 1
+fi
+
+chmod +x $NordVpn_local
+./$NordVpn_local -n
+(($?)) && read -n1 -r -p "[$NordVpn_local -n] FAILED!" key
 
 sudo usermod -aG nordvpn $USER
 (($?)) && read -n1 -r -p "[sudo usermod -aG nordvpn $USER] FAILED!" key
@@ -39,3 +79,12 @@ else
     (($?)) && read -n1 -r -p "[nordvpn whitelist add subnet $str] FAILED!" key
   done
 fi
+
+(($cd_worked)) && popd
+
+(($nordvpn_folder_existed_before_script)) && sudo rm -rf $HOME/development/nordvpn
+(($?)) && read -n1 -r -p "Cleanup has failed. Unable to delete $HOME/development/nordvpn. Press enter to continue..." key
+
+(($development_folder_existed_before_script)) && sudo rm -rf $HOME/development
+(($?)) && read -n1 -r -p "Cleanup has failed. Unable to delete $HOME/development. Press enter to continue..." key
+exit 0
