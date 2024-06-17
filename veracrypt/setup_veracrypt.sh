@@ -36,7 +36,7 @@ if [ $result -eq 0 ]; then
   veracrypt -t --version > /dev/null 2>&1
   (($?)) || read -n1 -r -p "  $(veracrypt -t --version) is already installed. Press enter to exit." key && exit 0
 
-  echo "  Veracrpt does not work. Trying to re-install."
+  echo "  Veracrypt does not work. Trying to re-install."
   sudo apt --fix-broken install -qq -o=Dpkg::Use-Pty=0 -y
   (($?)) && read -n1 -r -p "[sudo apt --fix-broken install -y] FAILED!" key
 fi
@@ -59,7 +59,7 @@ fi
 
 pushd $PWD
 cd $HOME/development/veracrypt
-(($?)) && read -n1 -r -p "Cannot create  $HOME/development/rclone. Working in current folder. Press enter to continue..." key && cd_worked=0
+(($?)) && read -n1 -r -p "Cannot switch  $HOME/development/veracrypt. Working in current folder. Press enter to continue..." key && cd_worked=0
 
 build_required=0
 sudo apt install -qq -o=Dpkg::Use-Pty=0 -y libwxgtk3.0-gtk3-0v5
