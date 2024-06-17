@@ -108,7 +108,7 @@ if [ $build_required -eq 1 ]; then
   sudo make install
   (($?)) && install_failed=1
 else
-  sudo apt install -qq -o=Dpkg::Use-Pty=0 ./$veracrypt_local
+  sudo apt install -y -qq -o=Dpkg::Use-Pty=0 ./$veracrypt_local
   (($?)) && install_failed=1
 fi
 

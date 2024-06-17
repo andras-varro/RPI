@@ -69,7 +69,7 @@ if [ $rclone_working -eq 0 ]; then
     (($?)) && read -n1 -r -p "[wget -L -O $rclone_local $rclone_url] FAILED!" key
   fi
   
-  sudo apt install -qq -o=Dpkg::Use-Pty=0 ./$rclone_local
+  sudo apt install -y -qq -o=Dpkg::Use-Pty=0 ./$rclone_local
   RESULT=$?
   if [ $RESULT -eq 0 ]; then
     rclone version > /dev/null 2>&1
