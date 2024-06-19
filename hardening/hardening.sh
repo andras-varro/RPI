@@ -197,7 +197,7 @@ function insert_text_at () {
 function add_lock_screen_to_main_menu () {
   echo "  Inserting lock screen entry in main menu"
   if [ "$GDMSESSION" == "LXDE-pi-wayfire" ]; then
-    read -n1 -r -p "Inserting lock screen on Wayfire is not supported. Lock screen entry NOT inserted!" key
+    read -t 10 -n1 -r -p "Inserting lock screen on Wayfire is not supported. Lock screen entry NOT inserted! Press enter or wait 10s to continue..." key
     return 1
   fi
 

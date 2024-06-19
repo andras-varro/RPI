@@ -2,7 +2,7 @@
 
 # setup_rclone.sh - A simple bash demo to install and configure rclone on RPI
 # Copyright 2024 Andras Varro https://github.com/andras-varro
-# V20240301
+# V20240619
 #
 # Tested with Raspberry OS Debian GNU/Linux 12 (bookworm) on RPi 5
 #
@@ -45,15 +45,15 @@ if [ $rclone_working -eq 0 ]; then
   cd_worked=1
   
   if [ ! -d $HOME/development ]; then 
-    mkdir $HOME/development
-    (($?)) && read -n1 -r -p "[mkdir $HOME/development] FAILED!" key
     development_folder_existed_before_script=0
+    mkdir $HOME/development
+    (($?)) && development_folder_existed_before_script=1 && read -t 10 -n1 -r -p "[mkdir $HOME/development] FAILED!" key
   fi
 
   if [ ! -d $HOME/development/rclone ]; then 
-    mkdir $HOME/development/rclone
-    (($?)) && read -n1 -r -p "[mkdir $HOME/development/rclone] FAILED!" key
     rclone_folder_existed_before_script=0
+    mkdir $HOME/development/rclone
+    (($?)) && rclone_folder_existed_before_script=1 && read -t 10 -n1 -r -p "[mkdir $HOME/development/rclone] FAILED!" key
   fi
 
   pushd $PWD
@@ -61,12 +61,12 @@ if [ $rclone_working -eq 0 ]; then
   RESULT=$?
   if [ $RESULT -ne 0 ]; then
     cd_worked=0
-    read -n1 -r -p "Cannot create  $HOME/development/rclone. Working in current folder. Press any key to continue..." key
+    read -t 10 -n1 -r -p "Cannot create  $HOME/development/rclone. Working in current folder. Press any key to continue..." key
   fi
 
   if [ ! -e $rclone_local ]; then
     wget -L -O $rclone_local $rclone_url
-    (($?)) && read -n1 -r -p "[wget -L -O $rclone_local $rclone_url] FAILED!" key
+    (($?)) && read -n1 -r -p "[wget -L -O $rclone_local $rclone_url] FAILED! Press enter to exit..." key && exit 1
   fi
   
   sudo apt install -y -qq -o=Dpkg::Use-Pty=0 ./$rclone_local
@@ -81,6 +81,15 @@ if [ $rclone_working -eq 0 ]; then
       rclone_working=1
     fi
   fi
+
+  (($cd_worked)) && popd
+
+  (($rclone_folder_existed_before_script)) && sudo rm -rf $HOME/development/rclone
+  (($?)) && read -t 10 -n1 -r -p "Cleanup has failed. Unable to delete $HOME/development/rclone. Press enter or wait 10s to continue..." key
+
+  (($development_folder_existed_before_script)) && sudo rm -rf $HOME/development
+  (($?)) && read -t 10 -n1 -r -p "Cleanup has failed. Unable to delete $HOME/development. Press enter or wait 10s to continue..." key
+
 fi
 
 

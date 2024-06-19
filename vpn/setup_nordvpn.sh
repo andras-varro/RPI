@@ -37,20 +37,20 @@ if [ $result -eq 0 ]; then
 fi
 
 if [ ! -d $HOME/development ]; then 
-  mkdir $HOME/development
-  (($?)) && read -n1 -r -p "[mkdir $HOME/development] FAILED!" key
   development_folder_existed_before_script=0
+  mkdir $HOME/development
+  (($?)) && development_folder_existed_before_script=0 && read -t 10 -n1 -r -p "[mkdir $HOME/development] FAILED!" key
 fi
 
 if [ ! -d $HOME/development/nordvpn ]; then 
-  mkdir $HOME/development/nordvpn
-  (($?)) && read -n1 -r -p "[mkdir $HOME/development/nordvpn] FAILED!" key
   nordvpn_folder_existed_before_script=0
+  mkdir $HOME/development/nordvpn
+  (($?)) && nordvpn_folder_existed_before_script=1 && read -t 10 -n1 -r -p "[mkdir $HOME/development/nordvpn] FAILED!" key
 fi
 
 pushd $PWD
 cd $HOME/development/nordvpn
-(($?)) && read -n1 -r -p "Cannot switch $HOME/development/nordvpn. Working in current folder. Press enter to continue..." key && cd_worked=0
+(($?)) && cd_worked=0 && read -t 10 -n1 -r -p "Cannot switch $HOME/development/nordvpn. Working in current folder. Press enter or wait 10s to continue..." key
 
 if [ ! -e $NordVpn_local ]; then
   wget -L -O $NordVpn_local $NordVpn_url
@@ -58,8 +58,10 @@ if [ ! -e $NordVpn_local ]; then
 fi
 
 chmod +x $NordVpn_local
+(($?)) && read -n1 -r -p "[chmod +x $NordVpn_local] FAILED! Press enter to exit..." key && exit 1
+
 ./$NordVpn_local -n
-(($?)) && read -n1 -r -p "[$NordVpn_local -n] FAILED!" key
+(($?)) && read -n1 -r -p "[$NordVpn_local -n] FAILED! Press enter to exit..." key && exit 1
 
 sudo usermod -aG nordvpn $USER
 (($?)) && read -n1 -r -p "[sudo usermod -aG nordvpn $USER] FAILED!" key
@@ -83,8 +85,8 @@ fi
 (($cd_worked)) && popd
 
 (($nordvpn_folder_existed_before_script)) && sudo rm -rf $HOME/development/nordvpn
-(($?)) && read -n1 -r -p "Cleanup has failed. Unable to delete $HOME/development/nordvpn. Press enter to continue..." key
+(($?)) && read -t 10 -n1 -r -p "Cleanup has failed. Unable to delete $HOME/development/nordvpn. Press enter or wait 10s to continue..." key
 
 (($development_folder_existed_before_script)) && sudo rm -rf $HOME/development
-(($?)) && read -n1 -r -p "Cleanup has failed. Unable to delete $HOME/development. Press enter to continue..." key
+(($?)) && read -t 10 -n1 -r -p "Cleanup has failed. Unable to delete $HOME/development. Press enter or wait 10s to continue..." key
 exit 0

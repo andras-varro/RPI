@@ -2,7 +2,7 @@
 
 # cryptomator.sh - A simple bash installer for Cryptomator AppImage
 # Copyright 2024 Andras Varro https://github.com/andras-varro
-# V20240617
+# V20240619
 #
 # Tested with Debian GNU/Linux 12 (bookworm)x64 on RPi 5
 #
@@ -43,7 +43,7 @@ function download_and_check () {
   fi
 
   chmod +x $local
-  (($?)) && read -n1 -r -p "Can't change "execute" attribube on $local. You will need to do that manually. Press enter to continue..." key
+  (($?)) && read -t 10 -n1 -r -p "Can't change "execute" attribube on $local. You will need to do that manually. Press enter to continue or wait 10s..." key
 
   path="$PWD/$local"
   if [ ! -e $path ]; then
@@ -58,19 +58,19 @@ function own_it() {
   file=$1
   if [ -n "$SUDO_USER" ]; then
     chown $SUDO_USER $file$
-    (($?)) && read -n1 -r -p "[chown $SUDO_USER $file] FAILED! Press enter to continue..." key
+    (($?)) && read -t 10 -n1 -r -p "[chown $SUDO_USER $file] FAILED! Press enter to continue or wait 10s..." key
   fi
 }
 
 if [ ! -d $AppImage_Folder ]; then 
   mkdir -p $AppImage_Folder
-  (($?)) && read -n1 -r -p "[mkdir -p $AppImage_Folder] FAILED! Press enter to continue..." key
+  (($?)) && read -t 10 -n1 -r -p "[mkdir -p $AppImage_Folder] FAILED! Press enter to continue or wait 10s..." key
 fi
 
 pushd $PWD
 cd_worked=0
 cd $AppImage_Folder
-(($?)) && read -n1 -r -p "Cannot switch to  $AppImage_Folder. Working in the current [$PWD] folder. Press enter to continue..." key && cd_worked=1
+(($?)) && cd_worked=1 && read -t 10 -n1 -r -p "Cannot switch to  $AppImage_Folder. Working in the current [$PWD] folder. Press enter to continue..." key
 
 download_and_check "$Cryptomator_url" "$Cryptomator_local" "$Cryptomator_sha256"
 own_it $Cryptomator_local
@@ -92,7 +92,7 @@ StartupNotify=true
 Terminal=false
 EOL
 
-(($?)) && read -n1 -r -p "Creating [$Desktop_File] FAILED! Press enter to continue..." key
+(($?)) && read -t 10 -n1 -r -p "Creating [$Desktop_File] FAILED! Press enter to continue ot wait 10s..." key
 
 own_it $Desktop_File
 (($cd_worked)) && popd

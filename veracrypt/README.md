@@ -1,7 +1,7 @@
 # setup_veracrypt
 ------------------
 
-Although there is a build for ARM64 from VeraCrypt, it does not work on current Raspberry OS, because it requires a component (libwxgtk3.0-gtk3-0v5) which is not available in the package repository. Instead a newer version is available (libwxgtk3.2-1). This scripts tries to instal the old version of the comonent, and if fails, pulls the source of VeraCrypt and builds it.
+Although there is a build for ARM64 from VeraCrypt, it does not work on current Raspberry OS, because it requires a component (libwxgtk3.0-gtk3-0v5) which is not available in the package repository. Instead a newer version is available (libwxgtk3.2-1). This scripts tries to instal the old version of the component, and if fails, pulls the source of VeraCrypt and builds it.
 
 # Features:
 * Download an install VeraCrypt or builds it from source.

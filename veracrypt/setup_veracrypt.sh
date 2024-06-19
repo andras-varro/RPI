@@ -2,7 +2,7 @@
 
 # setup.sh - A simple bash installer for veracrypt
 # Copyright 2024 Andras Varro https://github.com/andras-varro
-# V20240301
+# V20240619
 #
 # Tested with Raspberry OS Debian GNU/Linux 12 (bookworm) on RPi 5
 #
@@ -46,20 +46,20 @@ veracrypt_folder_existed_before_script=1
 cd_worked=1
 
 if [ ! -d $HOME/development ]; then 
-  mkdir $HOME/development
-  (($?)) && read -n1 -r -p "[mkdir $HOME/development] FAILED!" key
   development_folder_existed_before_script=0
+  mkdir $HOME/development
+  (($?)) && development_folder_existed_before_script=1 && read -t 10 -n1 -r -p "[mkdir $HOME/development] FAILED!" key
 fi
 
 if [ ! -d $HOME/development/veracrypt ]; then 
-  mkdir $HOME/development/veracrypt
-  (($?)) && read -n1 -r -p "[mkdir $HOME/development/veracrypt] FAILED!" key
   veracrypt_folder_existed_before_script=0
+  mkdir $HOME/development/veracrypt
+  (($?)) && veracrypt_folder_existed_before_script=1 && read -t 10 -n1 -r -p "[mkdir $HOME/development/veracrypt] FAILED!" key
 fi
 
 pushd $PWD
 cd $HOME/development/veracrypt
-(($?)) && read -n1 -r -p "Cannot switch  $HOME/development/veracrypt. Working in current folder. Press enter to continue..." key && cd_worked=0
+(($?)) && cd_worked=0 && read -t 10 -n1 -r -p "Cannot switch  $HOME/development/veracrypt. Working in current folder. Press enter to continue..." key
 
 build_required=0
 sudo apt install -qq -o=Dpkg::Use-Pty=0 -y libwxgtk3.0-gtk3-0v5
@@ -77,7 +77,7 @@ if [ $RESULT -ne 0 ]; then
 fi
 
 sudo apt install -qq -o=Dpkg::Use-Pty=0 -y $dependencies
-(($?)) && read -n1 -r -p "Can't install dependencies. Press enter to continue..." key && exit 1
+(($?)) && read -n1 -r -p "Can't install dependencies. Press enter to exit..." key && exit 1
 
 if [ ! -e $veracrypt_local ]; then
   wget -L -O $veracrypt_local $veracrypt_url
@@ -114,8 +114,11 @@ fi
 
 (($cd_worked)) && popd
 
+(($veracrypt_folder_existed_before_script)) && sudo rm -rf $HOME/development/veracrypt
+(($?)) && read -t 10 -n1 -r -p "Cleanup has failed. Unable to delete $HOME/development/veracrypt. Press enter or wait 10s to continue..." key
+
 (($development_folder_existed_before_script)) && sudo rm -rf $HOME/development
-(($?)) && read -n1 -r -p "Cleanup has failed. Unable to delete $HOME/development. Press enter to continue..." key
+(($?)) && read -t 10 -n1 -r -p "Cleanup has failed. Unable to delete $HOME/development. Press enter or wait 10s to continue..." key
 
 (($install_failed)) || echo "$(veracrypt -t --version) was installed. if the mounting does not work, disable kernel crypto." && exit 0
 
