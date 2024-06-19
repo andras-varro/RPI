@@ -62,15 +62,15 @@ function own_it() {
   fi
 }
 
-if [ ! -d $AppImages_Folder ]; then 
-  mkdir -p $AppImages_Folder
-  (($?)) && read -n1 -r -p "[mkdir -p $AppImages_Folder] FAILED! Press enter to continue..." key
+if [ ! -d $AppImage_Folder ]; then 
+  mkdir -p $AppImage_Folder
+  (($?)) && read -n1 -r -p "[mkdir -p $AppImage_Folder] FAILED! Press enter to continue..." key
 fi
 
 pushd $PWD
 cd_worked=0
-cd $AppImages_Folder
-(($?)) && read -n1 -r -p "Cannot switch to  $AppImages_Folder. Working in the current [$PWD] folder. Press enter to continue..." key && cd_worked=1
+cd $AppImage_Folder
+(($?)) && read -n1 -r -p "Cannot switch to  $AppImage_Folder. Working in the current [$PWD] folder. Press enter to continue..." key && cd_worked=1
 
 download_and_check "$Cryptomator_url" "$Cryptomator_local" "$Cryptomator_sha256"
 own_it $Cryptomator_local
