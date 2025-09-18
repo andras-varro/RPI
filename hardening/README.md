@@ -1,4 +1,6 @@
-# hardening
+# hardening: what the script does
+
+Todo hardening checklist: [next.md](./next.md)
 
 Raspberry OS/Raspbian comes with a nice and light user interface and autologin. Typing login password, locking the UI and requiring sudo password form the user is not required by default.
 
