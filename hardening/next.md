@@ -374,6 +374,89 @@ sudo rkhunter --check
 1. Don’t panic on every warning—check if it’s a legitimate system file.
 2. run sudo rkhunter --update && sudo rkhunter --propupd again after major package upgrades, so the baseline stays accurate.
 
+### 9.0 Configure update
+
+1. Open the rkhunter config
+
+```bash
+sudo nano /etc/rkhunter.conf
+```
+
+(on some distros it may be `/etc/rkhunter.conf.local` — check which file exists).
+
+2. Configure rkhunter to use wget
+
+Find (or add) this line:
+
+```ini
+WEB_CMD=/usr/bin/wget --no-check-certificate
+```
+
+### 9.1 Enable emails from rkhunter
+
+see first: [Configure postfix with gmail](./postfix.md) to send mails from rkhunter
+
+1. Open the rkhunter config
+
+```bash
+sudo nano /etc/rkhunter.conf
+```
+
+(on some distros it may be `/etc/rkhunter.conf.local` — check which file exists).
+
+2. Enable email alerts
+
+Find (or add) this line:
+
+```ini
+MAIL-ON-WARNING=you@example.com
+```
+
+Replace `you@example.com` with your email address.
+
+**Only warnings** -> you get email if something suspicious is found.
+If you also want email on **every run**, use:
+
+```ini
+MAIL-ON-ALL=you@example.com
+```
+
+3. Make sure mail works
+
+Since you already set up **Postfix with Gmail**, rkhunter will use that for sending.
+Quick test:
+
+```bash
+echo "test" | mail -s "rkhunter test" you@example.com
+```
+
+If you receive it, you’re good.
+
+---
+
+### 9.2 Run rkhunter daily (if not already)
+
+On Debian/Ubuntu, rkhunter installs a cron job under `/etc/cron.daily/rkhunter`.
+If you want to trigger a run manually with mail alerts:
+
+```bash
+sudo rkhunter --check --cronjob --report-warnings-only
+```
+
+### 9.3 Whitelist false positives
+
+1. Script:
+
+SCRIPTWHITELIST=/usr/bin/egrep
+
+2. Large memory:
+
+ALLOWSHM=/usr/bin/veracrypt
+
+3. Hidden files:
+
+ALLOWHIDDENFILE=/etc/.updated
+
 ---
 
 # Final Checklist
