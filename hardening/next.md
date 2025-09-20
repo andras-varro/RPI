@@ -220,25 +220,76 @@ Enable SSH jail:
 sudo nano /etc/fail2ban/jail.local
 ```
 
-```
+```ini
+[DEFAULT]
+# Ban settings
+bantime  = 1h
+findtime = 10m
+maxretry = 5
+
+# Default actions
+backend = systemd
+banaction = ufw
+
+# Email notifications (optional)
+# destemail = your@email.com
+# sender = fail2ban@yourhost
+# mta = sendmail
+# action = %(action_mwl)s
+
 [sshd]
 enabled = true
 port    = ssh
-logpath = /var/log/auth.log
-maxretry = 5
-bantime = 1h
+logpath = %(sshd_log)s
+backend = systemd
+
+# Uncomment to monitor xrdp
+# [xrdp-sesman]
+# enabled = true
+# port    = 3389
+# logpath = /var/log/xrdp-sesman.log
+# backend = systemd
 ```
+
+If you use xrdp, create a filter:
+
+```sh
+sudo nano /etc/fail2ban/filter.d/xrdp-sesman.conf
+```
+
+Add this content
+
+```ini
+[Definition]
+failregex = AUTHFAIL: user=.* ip=(::ffff:)?<HOST>
+ignoreregex =
+```
+
+Test the regex:
+
+```sh
+sudo fail2ban-regex /var/log/xrdp-sesman.log /etc/fail2ban/filter.d/xrdp-sesman.conf
+```
+
+If you do some failed logins, you will see that the failregex counter increases.
 
 Restart:
 
 ```bash
 sudo systemctl enable --now fail2ban
 sudo fail2ban-client status sshd
+# Uncomment the next line to check the xrdp monitoring
+# sudo fail2ban-client status xrdp-sesman
 ```
 
 **Checkpoint**: Status shows `File list: /var/log/auth.log`.
 
-**Pitfall**: Without `rsyslog` installed, `auth.log` won’t exist (install if needed).
+**Pitfalls**
+1. Without `rsyslog` installed, `auth.log` won’t exist (install if needed).
+2. Fail2ban bans new login attempts; existing active sessions are not affected.
+3. backend = systemd, which is fine for Ubuntu 25.04. For xrdp-sesman, it might sometimes be safer to explicitly use backend = polling if systemd journal parsing fails.
+4. xrdp must be using X11, as fail2ban won’t see anything meaningful if it’s Wayland-only.
+
 
 ### 6.1 Install rsyslog
 
