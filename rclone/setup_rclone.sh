@@ -19,8 +19,10 @@
 # limitations under the License.
 
 echo "Starting rclone setup."
-rclone_url=https://downloads.rclone.org/rclone-current-linux-arm64.deb
-rclone_local=rclone-current-linux-arm64.deb
+ARCH=$(dpkg --print-architecture || echo "arm64")
+echo "Detected architecture: ${ARCH}"
+rclone_url=https://downloads.rclone.org/rclone-current-linux-${ARCH}.deb
+rclone_local=rclone-current-linux-${ARCH}.deb
 rclone_working=0
 which rclone > /dev/null 2>&1
 result=$?
