@@ -181,9 +181,15 @@ After=plexdrive.service
 
 [Service]
 Type=simple
-ExecStart=/usr/bin/rclone mount  '${rclone_name}': ${HOME}/${entry_name} \\
-        --config=$HOME/.config/rclone/rclone.conf \\
-        --vfs-cache-mode writes \\
+ExecStart=/usr/bin/rclone mount '${rclone_name}': ${HOME}/${entry_name} \
+        --config=$HOME/.config/rclone/rclone.conf \
+        --vfs-cache-mode full \
+        --cache-dir=$HOME/.cache/rclone/${entry_name} \
+        --vfs-cache-max-age=8760h \
+        --vfs-cache-max-size=20G \
+        --dir-cache-time=720h \
+        --poll-interval=15s \
+        --vfs-cache-poll-interval=1m \
         --allow-other
 ExecStop=/bin/fusermount -u $HOME/${entry_name}
 Restart=always
